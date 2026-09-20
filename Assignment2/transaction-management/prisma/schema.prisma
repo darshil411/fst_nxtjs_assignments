@@ -1,0 +1,216 @@
+// ============================================================
+// Prisma Schema — Multi-Tenant Transaction Management System
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AuditAction {
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  TRANSACTION_CREATED
+  TRANSACTION_UPDATED
+  TRANSACTION_DELETED
+  LOGIN
+  LOGOUT
+  EMAIL_SENT
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+  COMPLAINED
+  OPENED
+  CLICKED
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER  (Better Auth extends this via account / session)
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String      @id @default(cuid())
+  name          String
+  email         String      @unique
+  emailVerified Boolean     @default(false)
+  image         String?
+  role          UserRole    @default(MEMBER)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  transactions  Transaction[]
+  auditLogs     AuditLog[]
+  emailEvents   EmailEvent[]
+
+  // Better Auth relations
+  sessions      Session[]
+  accounts      Account[]
+
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSACTION
+// ─────────────────────────────────────────────────────────────
+
+model Transaction {
+  id          String            @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  amount      Decimal           @db.Decimal(12, 2)
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  reference   String            @unique   // human-readable TXN-XXXXXXXX (see lib/reference.ts)
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@index([reference])
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  userId        String?                           // null for system actions
+  action        AuditAction
+  entity        String                            // e.g. "Transaction", "User"
+  entityId      String?                           // ID of the affected record
+  metadata      Json?                             // additional context
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now())
+
+  // Relations
+  // NOTE: `entityId` is a polymorphic pointer (it may reference a Transaction,
+  // a User, or another entity), so it is deliberately indexed but NOT a foreign
+  // key. Only `userId` (the actor) is a real relation.
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// EMAIL EVENT  (populated by Resend webhooks)
+// ─────────────────────────────────────────────────────────────
+
+model EmailEvent {
+  id          String          @id @default(cuid())
+  eventId     String          @unique        // Resend webhook event ID (dedup)
+  messageId   String                         // Resend message ID
+  recipient   String
+  eventType   EmailEventType
+  userId      String?
+  payload     Json?                          // raw webhook payload
+  occurredAt  DateTime
+  createdAt   DateTime        @default(now())
+
+  // Relations
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([messageId])
+  @@index([recipient])
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// BETTER AUTH — Session / Account / Verification
+// ─────────────────────────────────────────────────────────────
+
+model Session {
+  id          String    @id @default(cuid())
+  userId      String
+  token       String    @unique
+  expiresAt   DateTime
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id          String    @id @default(cuid())
+  identifier  String
+  value       String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([identifier, value])
+  @@index([identifier])
+}

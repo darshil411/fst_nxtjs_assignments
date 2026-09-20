@@ -1,0 +1,61 @@
+/* app/globals.css
+   Tailwind v4 design tokens. All colours are defined here as semantic tokens
+   and consumed through utility classes (bg-background, text-muted-foreground…). */
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: #faf9f6;
+  --color-foreground: #475569;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #334155;
+
+  --color-muted: #f8f3f6;
+  --color-muted-foreground: #94a3b8;
+
+  --color-primary: #ffb4a2;
+  --color-primary-foreground: #4a3a37;
+
+  --color-secondary: #e5e0ff;
+  --color-secondary-foreground: #443c68;
+
+  --color-accent: #ffe5b4;
+  --color-accent-foreground: #5c4d32;
+
+  --color-success: #b5e48c;
+  --color-success-foreground: #1a3b1a;
+  --color-success-muted: #f0fce3;
+
+  --color-warning: #ffe066;
+  --color-warning-foreground: #4d4000;
+  --color-warning-muted: #fff8cc;
+
+  --color-destructive: #ff9b85;
+  --color-destructive-foreground: #5c2018;
+  --color-destructive-muted: #ffece8;
+
+  --color-border: #e9e4e1;
+  --color-input: #e9e4e1;
+  --color-ring: #ffb4a2;
+
+  --radius-card: 1.25rem;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}

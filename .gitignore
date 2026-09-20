@@ -1,0 +1,24 @@
+# dependencies
+**/node_modules/
+**/.pnp
+**/.pnp.*
+**/.yarn/
+
+# Next.js
+**/.next/
+**/out/
+**/build/
+
+# environment files (never commit real credentials)
+**/.env*
+!**/.env.example
+
+# debug and generated files
+**/coverage/
+**/*.tsbuildinfo
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.vercel/
+.DS_Store
+*.pem
